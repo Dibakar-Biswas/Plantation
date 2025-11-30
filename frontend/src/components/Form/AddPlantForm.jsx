@@ -1,35 +1,83 @@
 import { useForm } from "react-hook-form";
 import { imageUpload } from "../../utils";
 import useAuth from "../../hooks/useAuth";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
+import LoadingSpinner from "../Shared/LoadingSpinner";
+import ErrorPage from "../../pages/ErrorPage";
+import toast from "react-hot-toast";
+import { TbFidgetSpinner } from "react-icons/tb";
 
 const AddPlantForm = () => {
-  const {user} = useAuth();
+
+
+  // useMutation hook useCase (POST || PUT || PATCH || DELETE)
+  const {
+    isPending,
+    isError,
+    mutateAsync,
+    reset: mutationReset,
+  } = useMutation({
+    mutationFn: async (payLoad) =>
+      await axios.post(`${import.meta.env.VITE_API_URL}/plants`, payLoad),
+    onSuccess: (data) => {
+      console.log(data);
+      // show toast
+      toast.success("Plant added successfully");
+      // navigate to my inventory page
+      mutationReset();
+      // Query Key Invalidate
+    },
+    onError: (error) => {
+      console.log(error);
+    },
+    onMutate: (payLoad) => {
+      console.log("I will post this data ----->", payLoad);
+    },
+    onSettled: (data, error) => {
+      console.log("I am from onSettled", data);
+      if (error) console.log(error);
+    },
+    retry: 3,
+  });
+
+  const { user } = useAuth();
   // React Hook Form
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm();
 
   const onSubmit = async (data) => {
     const { name, description, quantity, price, category, image } = data;
     const imageFile = image[0];
-    const imageUrl = await imageUpload(imageFile);
-    const plantData = {
-      image: imageUrl,
-      name,
-      description,
-      quantity: Number(quantity),
-      price: Number(price),
-      category,
-      seller:{
-        image: user?.photoURL,
-        name: user?.displayName,
-        email: user?.email
-      }
-    };
-    console.table(plantData);
+
+    try {
+      const imageUrl = await imageUpload(imageFile);
+      const plantData = {
+        image: imageUrl,
+        name,
+        description,
+        quantity: Number(quantity),
+        price: Number(price),
+        category,
+        seller: {
+          image: user?.photoURL,
+          name: user?.displayName,
+          email: user?.email,
+        },
+      };
+      await mutateAsync(plantData);
+      reset();
+    } catch (error) {
+      console.log(error);
+    }
   };
+
+  if (isPending) return <LoadingSpinner></LoadingSpinner>;
+  if (isError) return <ErrorPage></ErrorPage>;
 
   return (
     <div className="w-full min-h-[calc(100vh-40px)] flex flex-col justify-center items-center text-gray-800 rounded-xl bg-gray-50">
@@ -185,7 +233,12 @@ const AddPlantForm = () => {
               type="submit"
               className="w-full cursor-pointer p-3 mt-5 text-center font-medium text-white transition duration-200 rounded shadow-md bg-lime-500 "
             >
-              Save & Continue
+              
+              {isPending ? (
+                <TbFidgetSpinner className="animate-spin m-auto" />
+              ) : (
+                "Save & Continue"
+              )}
             </button>
           </div>
         </div>
