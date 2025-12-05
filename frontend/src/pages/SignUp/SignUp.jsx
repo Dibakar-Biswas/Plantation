@@ -4,7 +4,7 @@ import useAuth from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
 import { TbFidgetSpinner } from "react-icons/tb";
 import { useForm } from "react-hook-form";
-import { imageUpload } from "../../utils";
+import { imageUpload, saveOrUpdateUser } from "../../utils";
 
 const SignUp = () => {
   const { createUser, updateUserProfile, signInWithGoogle, loading } =
@@ -34,11 +34,14 @@ const SignUp = () => {
     try {
       // const {data} = await axios.post(`https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_IMGBB_API_KEY}`, formData)
       
-      const imageURL = await imageUpload(imageFile)
-      
+      const imageURL = await imageUpload(imageFile);
+      // const cloudinaryImageURL = await imageUploadCloudinary(imageFile);
+      // console.log("Cloudinary Response --->", cloudinaryImageURL);
 
       //1. User Registration
       const result = await createUser(email, password);
+
+      await saveOrUpdateUser({ name, email, image:imageURL })
 
       // 2. generate image url from selected file
 
@@ -88,7 +91,13 @@ const SignUp = () => {
   const handleGoogleSignIn = async () => {
     try {
       //User Registration using google
-      await signInWithGoogle();
+      const {user} = await signInWithGoogle();
+
+      await saveOrUpdateUser({ 
+        name: user?.displayName, 
+        email: user?.email, 
+        image: user?.photoURL 
+      })
 
       navigate(from, { replace: true });
       toast.success("Signup Successful");
